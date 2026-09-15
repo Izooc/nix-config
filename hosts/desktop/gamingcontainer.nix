@@ -282,7 +282,10 @@ in
     extraFlags = [
       "--private-users=${toString privateUsersBase}:65536"
       "--private-users-ownership=map"
-      
+      "--drop-capability=CAP_MKNOD"
+      "--drop-capability=CAP_SYS_MODULE"
+      "--drop-capability=CAP_SYS_RAWIO"
+
       "--bind=/run/opengl-driver:/run/opengl-driver"
       "--bind=/run/opengl-driver-32:/run/opengl-driver-32"
       "--bind=/dev/dri:/dev/dri"
