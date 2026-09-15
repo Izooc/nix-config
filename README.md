@@ -27,8 +27,8 @@ Unified NixOS flake for my desktop and laptop, using an ephemeral root (imperman
 
 ## Hosts
 
-- **isaac-dining-desktop** — AMD Gaming desktop with Lanzaboote (secure boot), secondary encrypted drives and a gaming container to limit scope from games.
-- **isaac-laptop** — Latitude 5420, general config for day to day use on KDE.
+- **isaac-dining-desktop** AMD Gaming desktop with Lanzaboote (secure boot), secondary encrypted drives and a gaming container to limit scope from games.
+- **isaac-laptop** Latitude 5420, general config for day to day use on KDE.
 
 ## Isolated Containers
 
@@ -62,14 +62,14 @@ Defined in `hosts/desktop/gamingcontainer.nix`. Isolates gaming software (Steam,
 
 **How it works:**
 
-1. A systemd-nspawn container is created with a private network (`172.30.0.1` ↔ `172.30.0.2`) and a macvlan interface on `enp34s0` for LAN access (e.g. game servers, VR streaming). The macvlan sits on a dedicated, VR-only network segment — the container never touches the main LAN through my wifi.
+1. A systemd-nspawn container is created with a private network (`172.30.0.1` ↔ `172.30.0.2`) and a macvlan interface on `enp34s0` for LAN access (e.g. game servers, VR streaming). The macvlan sits on a dedicated, VR-only network segment, the container never touches the main LAN through my wifi.
 2. User namespaces remap the `gaming` user (uid 1000) to host uid `524288 + 1000`.
 3. GPU passthrough is the same as the dev container (`/dev/dri` bind + ACLs), plus 32-bit driver support for Steam/Proton.
 4. A dedicated `snd-aloop` kernel module (index 31) creates a virtual ALSA loopback device. This is split between host and container:
    - **Host side**: PipeWire creates ALSA sink/source nodes on `hw:31` and routes them through loopback modules so game audio and mic input flow between the host's main audio stack and the container.
    - **Container side**: PipeWire exposes its own ALSA sink/source on `hw:31,1` so games see a normal audio device.
    - WirePlumber on the host ignores the loopback card to avoid conflicts.
-   - This split is deliberate: the games never see the host's PipeWire graph. If we forwarded it, a malicious game could listen to the host microphone and every other audio stream with no access controls at all. With the loopback, access is bounded — muting "Gaming Container Mic Input" on the host truly cuts the container's mic, and the container can never hear other host audio. The tradeoff is minimal added latency.
+   - This split is deliberate: the games never see the host's PipeWire graph. If we forwarded it, a malicious game could listen to the host microphone and every other audio stream with no access controls at all. With the loopback, access is bounded, muting "Gaming Container Mic Input" on the host truly cuts the container's mic, and the container can never hear other host audio. The tradeoff is minimal added latency.
 5. Input device passthrough uses a udev-based approach:
    - Joystick/hidraw events are copied to `/dev/gaming_input/` on the host and chowned to the container's mapped uid.
    - A `controller-linker` service inside the container watches `/dev/gaming_input` with `inotifywait` and symlinks hidraw devices into `/dev/` as they appear.
@@ -96,7 +96,7 @@ I run these as **containers, not VMs**, on purpose. GPU-passthrough VMs carry se
 
 What the sandbox does give you:
 
-- `--private-users` user namespaces remap every container uid to an unprivileged host uid — container root is never host root, so there is no uid-0 path to the host.
+- `--private-users` user namespaces remap every container uid to an unprivileged host uid, container root is never host root, so there is no uid-0 path to the host.
 - Per-device allowlists: `allowedDevices` pins the exact GPU, audio, and uinput nodes. The gaming container's controller access is additionally capped by a cgroup rule scoped to `/dev/gaming_input/*` rather than the whole input subsystem.
 - `--system-call-filter` blocks dangerous syscall groups. The dev container drops `@clock`, `@module`, `@reboot`, and `@swap`.
 - No host filesystem is reachable except the explicitly bind-mounted paths.
@@ -108,6 +108,6 @@ Acknowledged tradeoffs:
 - **The host Wayland socket** is exposed so games render onto your desktop; a compromised game could read or synthesize input through the compositor.
 - **Raw GPU access** (Vulkan/AMD driver) is a large attack surface and can be abused for DMA or driver exploits; unavoidable, could happen even with a VM passthrough unless using something like Venus to abstract calls.
 - **Audio is bounded, not trusted**, the loopback split means the container can only hear what you deliberately route into its virtual card.
-- **Anticheat-friendly by design**: no VM, no fake TPM, no kernel oddities — games run on the real GPU driver the way a bare-metal install would. And since Linux anti-cheats (EAC, BattlEye) operate in user-space rather than as kernel modules, there is only so much they can realistically do. That also means the container is trivially *detectable*. `systemd-detect-virt`, `/run/systemd/container`, `uid_map`, and interface names give it away to any user-space check but mainstream anti-cheats don't enforce those checks today. If one ever starts, it's undefendable: the fingerprints are the isolation mechanisms themselves, and faking them would mean dropping the user namespaces that make the container safe in the first place. No circumvention is attempted; games that won't tolerate the container simply get played outside it or not at all as I have come to realise from gaming on Linux.
+- **Anticheat-friendly by design**: no VM, no fake TPM, no kernel oddities games run on the real GPU driver the way a bare-metal install would. And since Linux anti-cheats (EAC, BattlEye) operate in user-space rather than as kernel modules, there is only so much they can realistically do. That also means the container is trivially *detectable*. `systemd-detect-virt`, `/run/systemd/container`, `uid_map`, and interface names give it away to any user-space check but mainstream anti-cheats don't enforce those checks today. If one ever starts, it's undefendable: the fingerprints are the isolation mechanisms themselves, and faking them would mean dropping the user namespaces that make the container safe in the first place. No circumvention is attempted; games that won't tolerate the container simply get played outside it or not at all as I have come to realise from gaming on Linux.
 
 Realistic threat model: treat games in the container as "untrusted but not actively malicious." The win here is containing dependency chaos, update side-effects, anti-cheat tampering, and accidental host filesystem damage. Defending against a genuinely hostile game would require a VM which comes with the same or worse anti-cheat problems.
