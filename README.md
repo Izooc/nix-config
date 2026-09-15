@@ -69,6 +69,7 @@ Defined in `hosts/desktop/gamingcontainer.nix`. Isolates gaming software (Steam,
    - **Host side**: PipeWire creates ALSA sink/source nodes on `hw:31` and routes them through loopback modules so game audio and mic input flow between the host's main audio stack and the container.
    - **Container side**: PipeWire exposes its own ALSA sink/source on `hw:31,1` so games see a normal audio device.
    - WirePlumber on the host ignores the loopback card to avoid conflicts.
+   - This is necessary because of how pipewire works, if we pass through the hosts pipewire graph, **potential** malicious apps could listen to our microphone and host graph without any form of controls, here we can control the access, if you mute the "Gaming Container Mic Input" on the host,        the container cannot listen to your microphone, equally it can not listen to other audio being outputted to the hosts graph, this does introduce latency, however this is minimal.
 5. Input device passthrough uses a udev-based approach:
    - Joystick/hidraw events are copied to `/dev/gaming_input/` and chowned to the container's mapped uid.
    - A `controller-linker` service watches `/dev/gaming_input` with `inotifywait` and symlinks hidraw devices into `/dev/` so they appear on the host too.
