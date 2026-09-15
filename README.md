@@ -97,7 +97,7 @@ I run these as **containers, not VMs**, on purpose. GPU-passthrough VMs carry se
 What the sandbox does give you:
 
 - `--private-users` user namespaces remap every container uid to an unprivileged host uid, container root is never host root, so there is no uid-0 path to the host.
-- Per-device allowlists: `allowedDevices` pins the exact GPU, audio, and uinput nodes. The gaming container's controller access is additionally capped by a cgroup rule scoped to `/dev/gaming_input/*` rather than the whole input subsystem.
+- Per-device allowlists: `allowedDevices` pins the exact GPU, audio, and uinput nodes. Controller access is granted by type-scoped cgroup rules (`char-input`, `char-hidraw`), matching by major number rather than per-instance so hotplugged pads keep working. The whole `/dev/input` tree is still never forwarded; only vendor-filtered joystick/hidraw nodes are bind-mounted in, and `CAP_MKNOD` is dropped so the container cannot create device nodes of its own.
 - `--system-call-filter` blocks dangerous syscall groups. The dev container drops `@clock`, `@module`, `@reboot`, and `@swap`.
 - No host filesystem is reachable except the explicitly bind-mounted paths.
 - Sudo is granted NOPASSWD for the single launch script only, scoped per user (a container compromise can't escalate the sudo surface).
